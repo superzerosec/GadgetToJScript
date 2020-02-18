@@ -89,7 +89,7 @@ namespace GadgetToJScript
                 fmt.SurrogateSelector = new _SurrogateSelector();
                 fmt.Serialize(stm, ls);
                 info.AddValue("DataSet.Tables_0", stm.ToArray());
-             }catch(Exception ex){
+             }catch{
                 
              }
         }

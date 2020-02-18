@@ -3,36 +3,30 @@ using System;
 using System.CodeDom.Compiler;
 using System.Reflection;
 using System.Text;
+using System.IO;
 
 namespace GadgetToJScript
 {
     class TestAssemblyLoader
     {
-        public static Assembly compile()
+        public static Assembly compile(string InputFile, string ReferenceAssemblies)
         {
             // Shellcode loader would make more sense here, just make sure your code is located within the default constructor.
-            string _testClass = @"
-                    
-                using System;
-                using System.Runtime.InteropServices;
-
-                    public class TestClass
-                    {
-                        " + "[DllImport(\"User32.dll\", CharSet = CharSet.Unicode)]" +
-                        @"public static extern int MessageBox(IntPtr h, string m, string c, int t);
-
-                        public TestClass(){
-                            " + "MessageBox((IntPtr)0, \"Test .NET Assembly Constructor Called.\", \"Coolio\", 0);" +
-                        @"}
-                    }
-            
-            ";
+            string _testClass = File.ReadAllText(InputFile);
 
             CSharpCodeProvider provider = new CSharpCodeProvider();
             CompilerParameters parameters = new CompilerParameters();
 
             parameters.ReferencedAssemblies.Add("System.dll");
 
+            if (!string.IsNullOrEmpty(ReferenceAssemblies))
+            {
+                var assemblies = ReferenceAssemblies.Split(',');
+
+                foreach (var asm in assemblies)
+                    parameters.ReferencedAssemblies.Add(asm);
+                    
+            }
 
             CompilerResults results = provider.CompileAssemblyFromSource(parameters, _testClass);
 
